@@ -1,0 +1,7 @@
+asyncdb==2.11.3
+fastapi==0.109.2
+uvicorn==0.27.1
+python-dotenv==1.0.1
+pydantic==2.6.1
+pymssql==2.2.11
+pyodbc==5.0.1
