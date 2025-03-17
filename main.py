@@ -43,6 +43,8 @@ async def inv_rpt_good_cardex(request: InvRptGoodCardexRequest):
             procedure_name="dbo.InvRptGoodCardex", params=params
         )
 
+        print(results)
+
         return {"results": results}
     except Exception as e:
         raise HTTPException(
@@ -57,7 +59,8 @@ async def check_db_connection():
     """
     try:
         # Execute a simple query to verify connection
-        result = await get_db_connection()
+        # result = await get_db_connection()
+        result = get_db_connection()
         print(result)
         return {"status": "success", "message": "Database connection is working"}
     except Exception as e:

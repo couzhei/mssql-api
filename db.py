@@ -1,10 +1,11 @@
 import os
 
-import pymssql
-from asyncdb import AsyncDB
+from mssql_python import connect
+ 
 from dotenv import load_dotenv
 
 StoredProc = """
+SET NOCOUNT ON;
       EXEC dbo.InvRptGoodCardex
       @StockNo = 12,
       @CompanyNo = 1,
@@ -21,7 +22,7 @@ StoredProc = """
       @GoodCode1 = '',
       @GoodCode2 = 'zzzzzzzzzzzzzzzzzzzzzz',
       @GGM = -1,
-      @unit = 0
+      @unit = 0;
 """
 
 load_dotenv()
@@ -31,58 +32,51 @@ DB_DATABASE = os.getenv("DB_DATABASE")
 DB_USERNAME = os.getenv("DB_USERNAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_PORT = os.getenv("DB_PORT")
+DB_ENCRYPT = os.getenv("DB_ENCRYPT")
 
 
 def get_db_connection():
-    # params = {
-    #     "user": DB_USERNAME,
-    #     "password": DB_PASSWORD,
-    #     "host": DB_SERVER,
-    #     "database": DB_DATABASE,
-    #     "port": DB_PORT,
-    #     "driver": "ODBC Driver 17 for SQL Server",
-    # }
-    # db = AsyncDB("mssql", params=params)
-    # async with db.connection() as conn:
-    #     result, error = await conn.execute("SELECT @VERSION")
-    #     if error:
-    #         raise RuntimeError(f"Error executing stored procedure: {error}")
-    #     return conn
-    conn = pymssql.connect(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_DATABASE)
+
+    conn_str = f"SERVER={DB_SERVER};DATABASE={DB_DATABASE};UID={DB_USERNAME};PWD={DB_PASSWORD};Encrypt={DB_ENCRYPT};"
+
+    # Create connection object
+    conn = connect(conn_str)
     return conn
-    # cursor = conn.cursor()
-    # return cursor
+
 
 
 def execute_stored_procedure(procedure_name: str, params: dict = None):
-    # conn = await get_db_connection()
-    # cursor = conn.cursor(as_dict=True)
-    # try:
-    #     if params:
-    #         # result = await conn.fetch(f"EXEC {procedure_name}", *params.values())
-    #         result = cursor.execute(f"EXEC {procedure_name}", *params.values())
-    #     else:
-    #         # result = await conn.fetch(QUERY)
-    #         result = cursor.execute(StoredProc)
-    #     return result.fetchall()
     conn = get_db_connection()
     try:
-        with conn.cursor(as_dict=True) as cursor:
-            if params:
-                cursor.callproc(procedure_name, tuple(params.values()))
-            else:
-                cursor.callproc(StoredProc)
+        cursor = conn.cursor()
+        if params:
+            # cursor.execute(f"EXEC {procedure_name}", tuple(params.values()))
+            cursor.execute(StoredProc)
+        else:
+            cursor.execute(StoredProc)
+        
+        print(cursor)
+        results = []
+        column_names = []
+        while True:
+            # Get column names from the cursor description
+            if not column_names:
+                column_names = [column[0] for column in cursor.description]
+            
+            rows = cursor.fetchall()
+            if rows:
+                results.extend(rows)
+            if not cursor.nextset():
+                break
 
-            print(
-                cursor.rowcount,
-                cursor.description,
-            )
-            for row in cursor:
-                print(row)
-            conn.commit()
-            result = cursor.fetchall()
+        # Convert results into a list of dictionaries
+        formatted_results = [
+            dict(zip(column_names, row))
+            for row in results
+        ]
 
-            return result
+        return formatted_results
+
     except Exception as e:
         raise RuntimeError(f"Error executing our stored procedure: {str(e)}")
     finally:
